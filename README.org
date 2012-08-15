@@ -13,7 +13,6 @@ mikutterのプラグインディレクトリにこのプラグインを入れて
 普通にこれで起動したらもう表示されてるでしょ
 
 * カスタマイズ
-https://github.com/toshia/mikutter-nested-quote/issues/1
-本家のリポジトリでIssuesにあがっていた「2件以上表示できない」を解消しました。
-https://github.com/yuxxxx/mikutter-nested-quote/raw/master/screenshot.png
+本家のリポジトリでIssuesにあがっていた「<a href="https://github.com/toshia/mikutter-nested-quote/issues/1">2件以上表示できない</a>」を解消しました。
+[[https://github.com/yuxxxx/mikutter-nested-quote/raw/master/screenshot.png]]
 こんなかんじです。
