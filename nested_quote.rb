@@ -6,18 +6,23 @@ class Gdk::NestedQuote < Gdk::SubParts
   TWEET_URL = [ /^https?:\/\/twitter.com\/(?:#!\/)?[a-zA-Z0-9_]+\/status(?:es)?\/(\d+)(?:\?.*)?$/,
                 /^http:\/\/favstar\.fm\/users\/[a-zA-Z0-9_]+\/status\/(\d+)/ ]
   attr_reader :icon_width, :icon_height
-
+  
+  def onclick(*args)
+    puts args
+  end
+  
   def initialize(*args)
     super
     @icon_width, @icon_height, @margin, @edge = 32, 32, 2, 8
     @message_got = false
     @messages = []
     if not get_tweet_ids.empty?
-      get_tweet_ids.each{ |message_id|
-        Thread.new {
+        get_tweet_ids.each_with_index{ |message_id, render_idnex|
+      Thread.new {
           m = Message.findbyid(message_id.to_i)
           if m.is_a? Message
             Delayer.new{
+              m[:render_index] = render_idnex
               render_message(m) } end } } end
       if message and not helper.visible?
       sid = helper.ssc(:expose_event, helper){
@@ -31,6 +36,7 @@ class Gdk::NestedQuote < Gdk::SubParts
     if not helper.destroyed?
       @message_got = true
       @messages << message
+      @messages = @messages.sort_by{|m| m[:render_index] }
       helper.on_modify
       helper.reset_height end
   end
@@ -39,6 +45,7 @@ class Gdk::NestedQuote < Gdk::SubParts
     if helper.visible? and messages
       offset = 0
       messages.length.times{|i|
+        puts messages.first
         render_outline(context, offset)
         header(context, offset)
         context.save {
@@ -183,9 +190,10 @@ class Gdk::NestedQuote < Gdk::SubParts
   def message
     helper.message end
 
+=begin
   def dummy_context
     Gdk::Pixmap.new(nil, 1, 1, helper.color).create_cairo_context end
-
+=end
   def get_backgroundcolor
     [1.0, 1.0, 1.0]
   end
@@ -193,17 +201,17 @@ class Gdk::NestedQuote < Gdk::SubParts
 end
 
 Plugin.create :nested_quote do
+
   filter_command do |menu|
-    menu[:copy_tweet_url] = {
+      menu[:copy_tweet_url] = {
       :slug => :copy_tweet_url,
       :name => 'ツイートのURLをコピー',
       :condition => lambda{ |m| !m.message.system? },
       :exec => lambda{ |m|
-        Gtk::Clipboard.copy("https://twitter.com/#!/#{m.message.user[:idname]}/statuses/#{m.message[:id]}")
+        Gtk::Clipboard.copy("https://twitter.com/#{m.message.user[:idname]}/statuses/#{m.message[:id]}")
       },
       :visible => true,
-      :role => :message }
+        :role => :message }
     [menu]
   end
-
 end
