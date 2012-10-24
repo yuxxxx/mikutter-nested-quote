@@ -21,7 +21,7 @@ class Gdk::NestedQuote < Gdk::SubParts
               m[:render_index] = render_idnex
               render_message(m) } end } } end
       if message and not helper.visible?
-      sid = helper.ssc(:expose_event, helper){
+        sid = helper.ssc(:expose_event, helper){
         helper.on_modify
         helper.signal_handler_disconnect(sid)
         false } end
@@ -32,7 +32,7 @@ class Gdk::NestedQuote < Gdk::SubParts
     if not helper.destroyed?
       @message_got = true
       @messages << message
-      @messages = @messages.sort_by{|m| m[:render_index] }
+      @messages = @messages.sort_by{ |m| m[:render_index] }
       helper.on_modify
       helper.reset_height end
   end
@@ -40,17 +40,16 @@ class Gdk::NestedQuote < Gdk::SubParts
   def render(context)
     if helper.visible? and messages
       offset = 0
-      messages.length.times{|i|
-        render_outline(context, offset)
-        header(context, offset)
+      messages.length.times{ |i|
+        render_outline(i, context, offset)
+        header(i, context, offset)
         context.save {
           context.translate(@margin+@edge, @margin+@edge + offset)
-          render_main_icon(context)
-          context.translate(@icon_width + @margin*2, header_left.size[1]/Pango::SCALE)
+          render_main_icon(i, context)
+          context.translate(@icon_width + @margin*2, header_left(i).size[1]/Pango::SCALE)
           context.set_source_rgb(*([0,0,0]).map{ |c| c.to_f / 65536 })
-          context.show_pango_layout(main_message(context)) }
-        offset += get_message_height
-        messages.rotate!(1)
+          context.show_pango_layout(main_message(i, context)) }
+        offset += get_message_height(i)
       }
     end
   end
@@ -58,20 +57,17 @@ class Gdk::NestedQuote < Gdk::SubParts
   def height
     if not(helper.destroyed?) and has_tweet_url? and messages and not messages.empty?
       h = 0
-      messages.length.times{ |i|
-        h += get_message_height
-        messages.rotate!(1)
+      messages.length.times.map { |i|
+        get_message_height(i)
       }
       h
     else
       0 end end
 
   private
-  def get_message_height
-    if not(helper.destroyed?) and has_tweet_url? and messages and not messages.empty?
-      [icon_height, (header_left.size[1]+main_message.size[1])/Pango::SCALE].max + (@margin+@edge)*2
-    else
-      0 end end
+  def get_message_height(i)
+      [icon_height, (header_left(i).size[1]+main_message(i).size[1])/Pango::SCALE].max + (@margin+@edge)*2
+  end
 
   def id2url(url)
     TWEET_URL.each{ |regexp|
@@ -96,8 +92,8 @@ class Gdk::NestedQuote < Gdk::SubParts
     @messages if @message_got end
 
   # ヘッダ（左）のための Pango::Layout のインスタンスを返す
-  def header_left(context = dummy_context)
-    message = messages.first
+  def header_left(i,context = dummy_context)
+    message = messages[i]
     attr_list, text = Pango.parse_markup("<b>#{Pango.escape(message[:user][:idname])}</b> #{Pango.escape(message[:user][:name] || '')}")
     layout = context.create_pango_layout
     layout.attributes = attr_list
@@ -106,8 +102,8 @@ class Gdk::NestedQuote < Gdk::SubParts
     layout end
 
   # ヘッダ（右）のための Pango::Layout のインスタンスを返す
-  def header_right(context = dummy_context)
-    message = messages.first
+  def header_right(i,context = dummy_context)
+    message = messages[i]
     now = Time.now
     hms = if message[:created].year == now.year && message[:created].month == now.month && message[:created].day == now.day
             message[:created].strftime('%H:%M:%S')
@@ -122,12 +118,12 @@ class Gdk::NestedQuote < Gdk::SubParts
     layout.alignment = Pango::ALIGN_RIGHT
     layout end
 
-  def header(context, offset)
+  def header(i,context, offset)
     header_w = width - @icon_width - @margin*3 - @edge*2
     context.save{
       context.translate(@icon_width + @margin*2 + @edge, @margin + @edge + offset)
       context.set_source_rgb(0,0,0)
-      hl_layout, hr_layout = header_left(context), header_right(context)
+      hl_layout, hr_layout = header_left(i, context), header_right(i, context)
       context.show_pango_layout(hl_layout)
       context.save{
         context.translate(header_w - hr_layout.size[0] / Pango::SCALE, 0)
@@ -143,11 +139,11 @@ class Gdk::NestedQuote < Gdk::SubParts
         context.show_pango_layout(hr_layout) } }
   end
 
-  def escaped_main_text
-    Pango.escape(messages.first.to_show) end
+  def escaped_main_text(i)
+    Pango.escape(messages[i].to_show) end
 
-  def main_message(context = dummy_context)
-    attr_list, text = Pango.parse_markup(escaped_main_text)
+  def main_message(i,context = dummy_context)
+    attr_list, text = Pango.parse_markup(escaped_main_text(i))
     layout = context.create_pango_layout
     layout.width = (width - @icon_width - @margin*3 - @edge*2) * Pango::SCALE
     layout.attributes = attr_list
@@ -156,29 +152,29 @@ class Gdk::NestedQuote < Gdk::SubParts
     layout.text = text
     layout end
 
-  def render_main_icon(context)
-    context.set_source_pixbuf(main_icon)
+  def render_main_icon(i,context)
+    context.set_source_pixbuf(main_icon(i))
     context.paint
   end
 
-  def render_outline(context, yoffset)
+  def render_outline(i,context, yoffset)
     context.save {
       context.translate(0, yoffset)
       context.pseudo_blur(4) {
         context.fill {
           context.set_source_rgb(*([32767, 32767, 32767]).map{ |c| c.to_f / 65536 })
-          context.rounded_rectangle(@edge, @edge, width-@edge*2, get_message_height-@edge*2, 4)
+          context.rounded_rectangle(@edge, @edge, width-@edge*2, get_message_height(i)-@edge*2, 4)
         }
       }
       context.fill {
         context.set_source_rgb(*([65535, 65535, 65535]).map{ |c| c.to_f / 65536 })
-        context.rounded_rectangle(@edge, @edge, width-@edge*2, get_message_height-@edge*2, 4)
+        context.rounded_rectangle(@edge, @edge, width-@edge*2, get_message_height(i)-@edge*2, 4)
       }
     }
   end
 
-  def main_icon
-    @main_icon = Gdk::WebImageLoader.pixbuf(messages.first[:user][:profile_image_url], icon_width, icon_height){ |pixbuf|
+  def main_icon(i)
+    @main_icon = Gdk::WebImageLoader.pixbuf(messages[i][:user][:profile_image_url], icon_width, icon_height){ |pixbuf|
       @main_icon = pixbuf
       helper.on_modify } end
 
