@@ -191,17 +191,12 @@ class Gdk::NestedQuote < Gdk::SubParts
 end
 
 Plugin.create :nested_quote do
-  filter_command do |menu|
-    menu[:copy_tweet_url] = {
-      :slug => :copy_tweet_url,
-      :name => 'ツイートのURLをコピー',
-      :condition => lambda{ |m| !m.message.system? },
-      :exec => lambda{ |m|
-        Gtk::Clipboard.copy("https://twitter.com/#{m.message.user[:idname]}/statuses/#{m.message[:id]}")
-      },
-      :visible => true,
-      :role => :message }
-    [menu]
-  end
-
+  command(:copy_tweet_url,
+          :name => 'ツイートのURLをコピー',
+          :condition => Proc.new{|opt| !opt.messages.any?(&:system?)},
+          :visible => true,
+          :role => :timeline) do |opt|
+    message = opt.messages.first.message
+    Gtk::Clipboard.copy("https://twitter.com/#{message.idname}/statuses/#{message.id}")
+       end
 end
